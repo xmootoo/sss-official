@@ -1,0 +1,9 @@
+ablations:
+  sl.lr: [0.0001, 0.00001]
+  data.seq_len: [3000, 5000, 10000]
+  moderntcn.d_model: [[16, 16], [16, 32], [32, 32], [32, 64], [64, 64]]
+  moderntcn.num_enc_layers: [[1, 1], [1, 2], [2, 2]]
+  moderntcn.large_size: [[9, 13], [19, 21], [19, 51], [49, 51]]
+  moderntcn.small_size: [[5, 5]]
+  moderntcn.dw_dims: [[128, 128], [256, 256]]
+  moderntcn.ffn_ratio: [1, 4]

@@ -1,0 +1,67 @@
+exp:
+  model_id: "DLinear"
+  seed_list: [69421, 69422, 69423, 69424, 69425]
+  learning_type: "sl"
+  scale: True
+  balance: True
+  acc: True
+  ch_acc: False
+  other_metrics: True
+  rank_verbose: False
+  best_model_metric: "ch_acc"
+  tuning_metric: "ch_f1"
+  task: "classification"
+  gpu_id: 0
+  neptune: False
+  batchwise_metrics: True
+
+data:
+  full_channels: True
+  resizing_mode: "pad_trunc"
+  seq_load: True
+  dataset: "open_neuro"
+  seq_len: 10000
+  pred_len: 1 # 1 if binary classification, 'n' for n-class classification
+  num_channels: 1
+  train_split: 0.7
+  val_split: 0.1
+  num_workers: 4
+  scale: True
+  shuffle_test: True
+  dtype: "float32"
+
+ddp:
+  ddp: False
+  master_port: "11359"
+  find_unused_parameters: True
+
+scheduler:
+  T_max: 50
+
+sl:
+  optimizer: "adam"
+  criterion: "BCE"
+  scheduler: "cosine"
+  epochs: 50
+  batch_size: 4096
+  lr: 1e-6
+  early_stopping: True
+  weight_decay: 1e-4
+  revin: True
+  revin_affine: True
+  revout: False
+  dataset_class: "classification"
+  return_head: True
+
+open_neuro:
+  patient_cluster: "all"
+  kernel_size: 24
+  kernel_stride: -1
+  task: "binary"
+  all_clusters: True
+  loocv: False
+  train_clusters: ["pt", "umf", "ummc"]
+  test_clusters: ["jh"]
+
+early_stopping:
+  patience: 10

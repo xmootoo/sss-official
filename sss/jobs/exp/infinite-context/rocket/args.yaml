@@ -1,0 +1,56 @@
+exp:
+  model_id: "Linear"
+  seed_list: [69421, 69422, 69423, 69424, 69425]
+  learning_type: "sl"
+  acc: True
+  other_metrics: True
+  best_model_metric: "ch_acc"
+  rank_verbose: False
+  neptune: False
+
+data:
+  rocket_transform: True
+  full_channels: True
+  seq_load: True
+  scale: True
+  balance: True
+  dataset: "open_neuro"
+  seq_len: 20000 # Set to 2 x num_kernels
+  pred_len: 1 # 1 if binary classification, 'n' for n-class classification
+  num_channels: 1
+  train_split: 0.7
+  val_split: 0.1
+  shuffle_test: False
+  dtype: "float64"
+
+ddp:
+  ddp: False
+  master_port: "12259"
+
+sl:
+  optimizer: "adam"
+  criterion: "BCE"
+  dataset_class: "classification"
+  batch_size: 1
+  num_kernels: 10000
+  max_dilation: 1000
+  norm_mode: "None"
+  epochs: 50
+  lr: 1e-4
+  scheduler: "cosine"
+  weight_decay: 1e-4
+  early_stopping: True
+
+open_neuro:
+  patient_cluster: "all"
+  all_clusters: True
+  loocv: False
+  train_clusters: ["pt", "umf", "ummc"]
+  test_clusters: ["jh"]
+  pool_type: "avg"
+  kernel_size: 24
+  kernel_stride: 12
+  task: "binary"
+
+early_stopping:
+  patience: 15

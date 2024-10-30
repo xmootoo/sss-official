@@ -1,0 +1,6 @@
+ablations:
+  sl.lr: [0.0001, 0.00001]
+  sl.num_enc_layers: [1, 2]
+  sl.num_heads: [2, 4, 8]
+  sl.d_model: [16, 32, 64]
+  sl.d_ff: [32, 64, 128]

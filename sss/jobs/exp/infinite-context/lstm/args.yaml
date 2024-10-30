@@ -1,0 +1,72 @@
+exp:
+  model_id: "RecurrentModel"
+  backbone_id: "LSTM"
+  seed_list: [69421, 69422, 69423, 69424, 69425]
+  learning_type: "sl"
+  acc: True
+  other_metrics: True
+  best_model_metric: "ch_acc"
+  neptune: False
+
+data:
+  full_channels: True
+  seq_load: True
+  balance: True
+  scale: True
+  dataset: "open_neuro"
+  pad_to_max: False
+  seq_len: -1 # Set to -1 if variable-length sequences
+  pred_len: 1 # 1 if binary classification, 'n' for n-class classification
+  num_channels: 1
+  train_split: 0.7
+  val_split: 0.1
+  patching: True
+  patch_dim: 64
+  patch_stride: 16
+  num_workers: 4
+  shuffle_test: False
+
+ddp:
+  ddp: False
+  master_port: "13253"
+
+scheduler:
+  T_max: 50
+  eta_min: 1e-6
+
+sl:
+  optimizer: "adam"
+  criterion: "BCE"
+  scheduler: "cosine"
+  epochs: 50
+  batch_size: 1
+  lr: 1e-4
+  d_model: 128
+  num_enc_layers: 2
+  dropout: 0.3
+  head_type: "linear"
+  norm_mode: "None"
+  bidirectional: False
+  early_stopping: True
+  weight_decay: 1e-4
+  revin: True
+  revin_affine: True
+  revout: False
+  last_state: False
+  avg_state: True
+  dataset_class: "variable_length"
+
+open_neuro:
+  patient_cluster: "all"
+  kernel_size: 24
+  kernel_stride: 12
+  window_stride: 1
+  pool_type: "avg"
+  all_clusters: True
+  loocv: False
+  train_clusters: ["pt", "umf", "ummc"]
+  test_clusters: ["jh"]
+  task: "binary"
+
+early_stopping:
+  patience: 10

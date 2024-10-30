@@ -1,0 +1,15 @@
+__pycache__/
+.pytest_cache/
+sss.egg-info/
+.eggs/
+sss/hpc/logs/
+data/
+checkpoint/
+**/.neptune
+test.py
+test.ipynb
+sss/data_analysis/figures/
+ecosystem.config.js
+logs/
+old_logs/
+figures/

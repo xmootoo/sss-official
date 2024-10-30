@@ -1,0 +1,6 @@
+ablations:
+  sl.lr: [0.0001, 0.00001]
+  data.seq_len: [10000]
+  sl.d_model: [16, 32, 64]
+  sl.d_ff: [32, 64, 128]
+  sl.num_enc_layers: [1, 2]

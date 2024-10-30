@@ -1,0 +1,6 @@
+job_name: "test"
+cc: "test"
+
+# Grid search (simple)
+ablations:
+  sl.lr: [0.0001, 0.00001]

@@ -1,0 +1,76 @@
+exp:
+  model_id: "PatchTSTBlind"
+  seed_list: [69421, 69422, 69423, 69424, 69425]
+  learning_type: "sl"
+  scale: True
+  balance: True
+  acc: True
+  ch_acc: True
+  other_metrics: True
+  rank_verbose: False
+  best_model_metric: "ch_acc"
+  batchwise_metrics: False
+  tuning_metric: "ch_f1"
+  gpu_id: 0
+  task: "classification"
+  neptune: False
+
+data:
+  resizing_mode: "pad_trunc"
+  num_workers: 8
+  window_stride: 5
+  seq_load: True
+  dataset: "open_neuro"
+  seq_len: 1024
+  pred_len: 1 # 1 if binary classification, 'n' for n-class classification
+  num_channels: 1
+  train_split: 0.7
+  val_split: 0.1
+  scale: True
+  shuffle_test: True
+
+ddp:
+  ddp: False
+  master_port: "12356"
+
+sl:
+  optimizer: "adam"
+  criterion: "ChannelLossBCE"
+  scheduler: "cosine"
+  epochs: 50
+  batch_size: 8192
+  lr: 1e-4
+  num_enc_layers: 2
+  d_model: 32
+  d_ff: 128
+  num_heads: 4
+  attn_dropout: 0.3
+  ff_dropout: 0.3
+  pred_dropout: 0.0
+  early_stopping: True
+  weight_decay: 1e-4
+  revin: True
+  revin_affine: True
+  revout: False
+  dataset_class: "classification"
+  head_type: "linear"
+
+open_neuro:
+  kernel_size: 24
+  kernel_stride: -1
+  pool_type: "avg"
+  ch_loss: True
+  ch_loss_type: "BCE"
+  alpha: 0.0
+  beta: 1.0
+  task: "binary"
+  patient_cluster: "all"
+  all_clusters: True
+  loocv: False
+  train_clusters: ["pt", "umf", "ummc"]
+  test_clusters: ["jh"]
+  ch_aggr: False
+  ch_reduction: "mean"
+
+early_stopping:
+  patience: 15

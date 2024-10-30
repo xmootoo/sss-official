@@ -1,0 +1,17 @@
+run_id: SOZ-8472 # all cluster, seed=69245 (L=2048)
+mode: "test" # Options: 'train', 'val', 'test
+save: True
+method_name: "SSS"
+patient_cluster: "ummc" # Options: 'all', 'pt', 'ummc', 'jh', 'umf'
+avg_mode: "none" # Options: 'sma', 'ema', 'none', 'local_var'
+new_seed: False
+window_stride: 1
+batch_size: 8192
+num_sampled_channels: 150
+# pad_mode: "none"
+cmap: "viridis"
+dpi: 600
+calibrate: False
+calibration_model: "isotonic_regression"
+relative: False
+probability: True
