@@ -1,17 +1,18 @@
-run_id: SOZ-8472 # all cluster, seed=69245 (L=2048)
+run_id: SOZ-8472 # Corresponds to your Neptune.ai run ID
+project_name: "replace-with-your-project-name" # Replace with your project name
 mode: "test" # Options: 'train', 'val', 'test
 save: True
 method_name: "SSS"
 patient_cluster: "ummc" # Options: 'all', 'pt', 'ummc', 'jh', 'umf'
-avg_mode: "none" # Options: 'sma', 'ema', 'none', 'local_var'
-new_seed: False
-window_stride: 1
-batch_size: 8192
-num_sampled_channels: 150
+avg_mode: "none" # Options: 'sma', 'ema', 'none', 'local_var'. Method used in paper: 'none'
+new_seed: False # Keep False
+window_stride: 1 # Keep 1
+batch_size: 8192 # Keep 8192
+num_sampled_channels: 150 # Number of channels to sample from the medical center
 # pad_mode: "none"
 cmap: "viridis"
-dpi: 600
-calibrate: False
+dpi: 600 # 300 for quick view, 600 for publication
+calibrate: False # Keep False (uncalibrated probabilities reveal local differences more)
 calibration_model: "isotonic_regression"
-relative: False
-probability: True
+relative: False # Keep False
+probability: True # Keep True
