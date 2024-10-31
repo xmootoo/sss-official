@@ -1,7 +1,15 @@
 # Stochastic Sparse Sampling (SSS)
-$\textbf{S}\text{tochastic } \textbf{S}\text{parse } \textbf{S}\text{ampling}$ (SSS) is a novel time series classification method for processing variable-length sequences. Notably, it outperforms many state-of-the-art machine learning and deep learning methods, benchmarked on the [Epilepsy iEEG Multicenter Dataset](#data) for seizure onset zone (SOZ) localization. Published in the **NeurIPS 2024 Workshop on Time Series in the Age of Large Models**.
-* Full paper: [https://arxiv.org/abs/2410.06412](https://arxiv.org/abs/2410.06412)
-* NeurIPS TSALM Workshop: [https://openreview.net/forum?id=4dpbdz280d](https://openreview.net/forum?id=4dpbdz280d)
+## Overview
+This is the official repository for the paper:
+
+>[Xavier Mootoo, Alan A. Díaz-Montiel, Milad Lankarany, Hina Tabassum. *Stochastic Sparse Sampling: A Framework for Variable-Length Medical Time Series Classification*.](https://arxiv.org/abs/2410.06412)
+
+An preliminary version has been accepted to the **NeurIPS 2024 Workshop on Time Series in the Age of Large Models**, with the full version under review.
+- [📄 Full Paper (arXiv)](https://arxiv.org/abs/2410.06412)
+- [🔍 Workshop Paper (OpenReview)](https://openreview.net/forum?id=4dpbdz280d)
+## Description
+**S**tochastic **S**parse **S**ampling (SSS) is a novel time series classification method for processing variable-length sequences. SSS outperforms many state-of-the-art machine learning and deep learning methods, benchmarked on the [Epilepsy iEEG Multicenter Dataset](#data) for seizure onset zone (SOZ) localization. 
+
 
 
 <p align="center">
@@ -14,7 +22,7 @@ $\textbf{S}\text{tochastic } \textbf{S}\text{parse } \textbf{S}\text{ampling}$ (
 
 
 ## Table of Contents
-- [Description](#stochastic-sparse-sampling-sss)
+- [Overview](#stochastic-sparse-sampling-sss)
 - [Installation](#installation)
 - [Project Structure](#project-structure)
 - [Data](#data)
@@ -151,7 +159,7 @@ export NEPTUNE_API_TOKEN='your-neptune-api-token'
 ```yaml
 run_id: "SOZ-33"              # Your Neptune run ID
 project_name: "your-project"  # Your Neptune project name
-mode: "train"                # Analysis mode
+mode: "train"                # Dataset to visualize
 ...
 ```
 For a complete list of configuration options and their descriptions, refer to the `Config` class in `visualize.py`.
