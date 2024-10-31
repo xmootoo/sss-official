@@ -198,7 +198,7 @@ The [Epilepsy iEEG Multicenter Dataset](https://openneuro.org/datasets/ds003029/
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Citations
-If you use this code in your research, please cite our paper:
+If you use this code in your research or work, please cite our paper:
 ```bibtex
 @article{mootoo2024stochastic,
     title     = {Stochastic Sparse Sampling: A Framework for Variable-Length Medical Time Series Classification},
@@ -211,7 +211,6 @@ If you use this code in your research, please cite our paper:
     primaryClass = {cs.LG}
 }
 ```
-The full paper is available on [arXiv](https://arxiv.org/abs/2410.06412).
 
 ## Contact
 For queries, please contact the corresponding author through: `xmootoo at gmail dot com`.
@@ -219,4 +218,4 @@ For queries, please contact the corresponding author through: `xmootoo at gmail 
 ## Acknowledgments
 Xavier Mootoo is supported by Canada Graduate Scholarships - Master's (CGS-M) funded by the [Natural Sciences and Engineering Research Council](https://www.nserc-crsng.gc.ca/index_eng.asp) (NSERC) of Canada, the Vector Scholarship in Artificial Intelligence, provided through the [Vector Institute](https://vectorinstitute.ai/), Canada, and the Ontario Graduate Scholarship (OGS) granted by the provincial government of Ontario, Canada. 
 
-We extend our gratitude to [Commune AI](https://communeai.org/) for generously providing the computational resources needed to carry out our experiments, in particular, we thank Luca Vivona ([@LVivona](https://github.com/LVivona)) and Sal Vivona ([@salvivona](https://github.com/salvivona)). We also greatly thank Anastasios Angelopoulos ([@aangelopoulos](https://github.com/aangelopoulos)) and Daniele Grattarola ([@danielegrattarola](https://github.com/danielegrattarola)) for their valuable feedback and comments on our work.
+We extend our gratitude to [Commune AI](https://communeai.org/) for generously providing the computational resources needed to carry out our experiments, in particular, we thank Luca Vivona ([@LVivona](https://github.com/LVivona)) and Sal Vivona ([@salvivona](https://github.com/salvivona)). Many thanks as well to Anastasios Angelopoulos ([@aangelopoulos](https://github.com/aangelopoulos)) and Daniele Grattarola ([@danielegrattarola](https://github.com/danielegrattarola)) for their valuable feedback and comments on our work.
