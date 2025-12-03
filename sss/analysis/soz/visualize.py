@@ -8,6 +8,7 @@ from sss.config.config import load_config
 from sss.utils.models import get_model
 import yaml
 from pydantic import BaseModel, Field
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 # Assume this is the structure of your YAML file
 class Config(BaseModel):
@@ -31,20 +32,19 @@ class Config(BaseModel):
     project_name: str = Field(default="neptune-project-name", description="Neptune project name")
 
 # Load the arguments
-
 def main():
-    with open('plot.yaml', 'r') as file:
+    with open(SCRIPT_DIR / 'plot.yaml', 'r') as file:
         yaml_args = yaml.safe_load(file)
     args = Config(**yaml_args)
 
     # Console and Neptune
     console = Console()
-    api_token = os.getenv('NEPTUNE_API_TOKEN')
+    # api_token = os.getenv('NEPTUNE_API_TOKEN')
+    api_token = os.environ.get('NEPTUNE_API_TOKEN', '')
 
     # Find directories
     # model_folder = "../../../checkpoint/analysis"
-    script_dir = Path(__file__).resolve().parent
-    project_root = script_dir.parent.parent.parent
+    project_root = SCRIPT_DIR.parents[2]
     model_folder = project_root / "checkpoint" / "analysis"
     model_folder.mkdir(parents=True, exist_ok=True) # Create the model folder if it does not exist
 
@@ -61,7 +61,9 @@ def main():
     # Load the model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     state_dict = torch.load(model_path, map_location=torch.device('cpu'))
-    exp_args_path = project_root / "sss" / "jobs" / "exp" / "open_neuro" / "binary" / "sss" / "best" / "args.yaml"
+    # exp_args_path = project_root / "sss" / "jobs" / "exp" / "open_neuro" / "binary" / "sss" / "best" / "args.yaml"
+    print(f"Project root: {project_root}")
+    exp_args_path = project_root / "sss" / "jobs" / "exp" / "sss_test" / "args.yaml"  
     exp_args = load_config(exp_args_path)
     model = get_model(exp_args)
 

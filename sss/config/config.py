@@ -1,15 +1,15 @@
 import warnings
-warnings.filterwarnings("ignore")
-
 import os
 import yaml
 import time
 from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Set, Tuple, List, Optional, Dict, Union
-
+from pathlib import Path
 import random
 import string
+
+warnings.filterwarnings("ignore")
 
 def generate_random_id(length=10):
     # Seed the random number generator with current time and os-specific random data
@@ -87,6 +87,7 @@ class Data(BaseModel):
     median_seq_len: bool = Field(default=False, description="Whether to use the median sequence length from the training set as the context/window size.")
     target_channel: int = Field(default=-1, description="Target channel for univariate modelling.")
     time_indices: bool = Field(default=False, description="Whether to use relative time indices for sorting windows within the channel.")
+     
 
 class SparseContext(BaseModel):
     sparse_context: bool = Field(default=False, description="Whether to use sparse context encoding for the model.")
@@ -224,7 +225,10 @@ class OpenNeuro(BaseModel):
     loocv: bool = Field(default=False, description="Leave-one-out cross-validation for the OpenNeuro dataset on the patient clusters.")
     train_clusters: List[str] = Field(default=["jh", "umf", "pt"], description="The patient clusters in Leave-one-out cross-validation used for training. Options, any subset of {'jh', 'pt', 'umf', 'ummc'}")
     test_clusters: List[str] = Field(default=["umf"], description="The patient clusters in Leave-one-out cross-validation used for testing. Options, any subset of {'jh', 'pt', 'umf', 'ummc'}")
-
+    noise: bool = Field(default=False, description="Whether to use noise or not")
+    noise_fs: float = Field(default=1000, description="Noise frequency")
+    noise_line_freq: float = Field(default=60, description="Noise line frequency")
+    
 class QWA(BaseModel):
     qwa: bool = Field(default=False, description="Whether to use the Quartile Weighted Aggregation model.")
     ch_loss_refined: bool = Field(default=True, description="Whether to use ChannelLoss for the refined probabilities.")
@@ -310,7 +314,7 @@ class Global(BaseModel):
     mcd: MonteCarloDropout = MonteCarloDropout()
     sparse_context: SparseContext = SparseContext()
 
-def load_config(file_path: str) -> Global:
+def load_config(file_path: Union[str, Path]) -> Global:
     print(f"Received file_path in load_config: {file_path}")
     print(f"Absolute file_path in load_config: {os.path.abspath(file_path)}")
     with open(file_path, 'r') as file:

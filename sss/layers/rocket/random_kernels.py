@@ -59,7 +59,7 @@ def apply_kernel(X, weights, length, bias, dilation, padding):
     output_length = (input_length + (2 * padding)) - ((length - 1) * dilation)
 
     _ppv = 0
-    _max = np.NINF
+    _max = -np.inf
 
     end = (input_length + padding) - ((length - 1) * dilation)
 

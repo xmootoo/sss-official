@@ -1,25 +1,37 @@
-from typing import Tuple, List, Union, Callable, Optional, Protocol
+from typing import Callable, List, Optional, Protocol, Tuple, Union
 
 # Torch stack
 import numpy as np
+import pandas as pd
 import torch
+import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.distributed as dist
 
 # Torchmetrics
 import torchmetrics
-from torchmetrics.classification import BinaryF1Score, MulticlassF1Score, MulticlassConfusionMatrix, AUROC
 
 # Pydantic
 from pydantic import BaseModel
+from sklearn.calibration import CalibratedClassifierCV
 
 # Scikit-learn
 from sklearn.isotonic import IsotonicRegression
-from sklearn.calibration import CalibratedClassifierCV
 from sklearn.svm import SVC
+from torchmetrics.classification import (
+    AUROC,
+    BinaryF1Score,
+    MulticlassConfusionMatrix,
+    MulticlassF1Score,
+)
 
-def binary_classification_metrics(preds: torch.Tensor, targets: torch.Tensor, probs: torch.Tensor, device: torch.device) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+
+def binary_classification_metrics(
+    preds: torch.Tensor,
+    targets: torch.Tensor,
+    probs: torch.Tensor,
+    device: torch.device,
+) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
     Computes evaluation metrics relevant for binary classification, including AUC-ROC.
 
@@ -55,10 +67,18 @@ def binary_classification_metrics(preds: torch.Tensor, targets: torch.Tensor, pr
     tp, fp, fn, tn = cm[1, 1], cm[0, 1], cm[1, 0], cm[0, 0]
 
     # Compute metrics (avoid division by zero)
-    tpr = torch.where(tp + fn != 0, tp / (tp + fn), torch.tensor(0.0, device=device))  # True Positive Rate / Sensitivity / Recall
-    tnr = torch.where(tn + fp != 0, tn / (tn + fp), torch.tensor(0.0, device=device))  # True Negative Rate / Specificity
-    fpr = torch.where(fp + tn != 0, fp / (fp + tn), torch.tensor(0.0, device=device))  # False Positive Rate
-    fnr = torch.where(fn + tp != 0, fn / (fn + tp), torch.tensor(0.0, device=device))  # False Negative Rate
+    tpr = torch.where(
+        tp + fn != 0, tp / (tp + fn), torch.tensor(0.0, device=device)
+    )  # True Positive Rate / Sensitivity / Recall
+    tnr = torch.where(
+        tn + fp != 0, tn / (tn + fp), torch.tensor(0.0, device=device)
+    )  # True Negative Rate / Specificity
+    fpr = torch.where(
+        fp + tn != 0, fp / (fp + tn), torch.tensor(0.0, device=device)
+    )  # False Positive Rate
+    fnr = torch.where(
+        fn + tp != 0, fn / (fn + tp), torch.tensor(0.0, device=device)
+    )  # False Negative Rate
 
     # F1 Score
     f1 = BinaryF1Score().to(device)
@@ -72,6 +92,7 @@ def binary_classification_metrics(preds: torch.Tensor, targets: torch.Tensor, pr
     metrics = torch.stack([acc, tpr, tnr, fpr, fnr, f1_score, auroc_score])
 
     return metrics
+
 
 def multi_classification_metrics(preds, targets, probs, device):
     """
@@ -88,16 +109,28 @@ def multi_classification_metrics(preds, targets, probs, device):
     multi_acc = (preds == targets).float().mean().unsqueeze(0)
 
     # Compute metrics for SOZ vs non-SOZ
-    preds_soz = torch.where((preds == 1) | (preds == 3), torch.tensor(1), torch.tensor(0))
-    targets_soz = torch.where((targets == 1) | (targets == 3), torch.tensor(1), torch.tensor(0))
+    preds_soz = torch.where(
+        (preds == 1) | (preds == 3), torch.tensor(1), torch.tensor(0)
+    )
+    targets_soz = torch.where(
+        (targets == 1) | (targets == 3), torch.tensor(1), torch.tensor(0)
+    )
     probs_soz = probs[:, 1] + probs[:, 3]
-    soz_metrics = binary_classification_metrics(preds_soz, targets_soz, probs_soz, device) # TODO:
+    soz_metrics = binary_classification_metrics(
+        preds_soz, targets_soz, probs_soz, device
+    )  # TODO:
 
     # Compute metrics for Positive Outcome vs Negative Outcome
-    preds_outcome = torch.where((preds == 0) | (preds == 1), torch.tensor(1), torch.tensor(0))
-    targets_outcome = torch.where((targets == 0) | (targets == 1), torch.tensor(1), torch.tensor(0))
+    preds_outcome = torch.where(
+        (preds == 0) | (preds == 1), torch.tensor(1), torch.tensor(0)
+    )
+    targets_outcome = torch.where(
+        (targets == 0) | (targets == 1), torch.tensor(1), torch.tensor(0)
+    )
     probs_outcome = probs[:, 0] + probs[:, 1]
-    outcome_metrics = binary_classification_metrics(preds_outcome, targets_outcome, probs_outcome, device)
+    outcome_metrics = binary_classification_metrics(
+        preds_outcome, targets_outcome, probs_outcome, device
+    )
 
     # Multiclass F1 (Macro-averaged F1)
     f1 = MulticlassF1Score(num_classes=4).to(device)
@@ -108,15 +141,12 @@ def multi_classification_metrics(preds, targets, probs, device):
     auroc_score = auroc(probs, targets).unsqueeze(0).to(device)
 
     # Stack and return metrics
-    metrics = torch.cat([
-        multi_acc,
-        soz_metrics,
-        outcome_metrics,
-        f1_score,
-        auroc_score
-    ]).to(device)
+    metrics = torch.cat(
+        [multi_acc, soz_metrics, outcome_metrics, f1_score, auroc_score]
+    ).to(device)
 
     return metrics
+
 
 def compute_accuracy(logits, target, args, calibrator=None):
     """
@@ -139,13 +169,11 @@ def compute_accuracy(logits, target, args, calibrator=None):
     else:
         targets = target.to(logits.device)
 
-
     if args.open_neuro.task == "multi":
         if logits.dim() == 3:
             logits = logits.squeeze(0)
         elif logits.dim() == 1:
             logits = logits.unsqueeze(0)
-
 
     # Compute number of correct predictions
     if args.open_neuro.task == "binary":
@@ -157,10 +185,12 @@ def compute_accuracy(logits, target, args, calibrator=None):
         # preds = probs.argmax(dim=-1)
         num_classes = logits.size(-1)
     else:
-        raise ValueError(f"Invalid loss_type: {args.open_neuro.task}. Use 'binary' or 'multi'.")
+        raise ValueError(
+            f"Invalid loss_type: {args.open_neuro.task}. Use 'binary' or 'multi'."
+        )
 
     # Calibrate the probabilities
-    if calibrator and args.exp.calibration_type=="window":
+    if calibrator and args.exp.calibration_type == "window":
         probs = calibrator.calibrate(probs)
 
     if args.open_neuro.task == "binary":
@@ -168,15 +198,17 @@ def compute_accuracy(logits, target, args, calibrator=None):
     elif args.open_neuro.task == "multi":
         preds = probs.argmax(dim=-1)
 
-
     if args.exp.other_metrics:
         if args.open_neuro.task == "binary":
-            metrics = binary_classification_metrics(preds, targets, probs, logits.device)
+            metrics = binary_classification_metrics(
+                preds, targets, probs, logits.device
+            )
         elif args.open_neuro.task == "multi":
             metrics = multi_classification_metrics(preds, targets, probs, logits.device)
         return metrics
     else:
         return (preds == targets).float().mean()
+
 
 def compute_channel_accuracy(logits, target, ch_ids, u, args, calibrator=None):
     """
@@ -190,6 +222,7 @@ def compute_channel_accuracy(logits, target, ch_ids, u, args, calibrator=None):
         acc: Accuracy of the model for channel predictions.
         preds: Predictions for each channel.
         targets: Ground truth labels for each channel.
+        channel_df: Pandas DataFrame with channel-level predictions and probabilities.
     """
 
     target = target.to(logits.device)
@@ -209,55 +242,128 @@ def compute_channel_accuracy(logits, target, ch_ids, u, args, calibrator=None):
         window_probs = F.softmax(logits, dim=-1)
         num_classes = logits.size(-1)
     else:
-        raise ValueError(f"Invalid loss_type: {args.open_neuro.ch_loss_type}. Use 'BCE' or 'CE'.")
+        raise ValueError(
+            f"Invalid loss_type: {args.open_neuro.ch_loss_type}. Use 'BCE' or 'CE'."
+        )
+
+    window_probs_raw = window_probs
+    window_probs_calibrated = window_probs
 
     if calibrator and args.exp.calibration_type == "window":
-        window_probs = calibrator.calibrate(window_probs)
+        window_probs_calibrated = calibrator.calibrate(window_probs_raw)
 
     # Compute predictions
     num_unique_ch = len(torch.unique(ch_ids))
-    preds = []
-    targets = []
-    probs = []
+    raw_preds = []
+    raw_targets = []
+    raw_probs = []
+    calibrated_preds_list = []
+    calibrated_probs_list = []
+    channel_ids = []
+    channel_lengths = []
     for ch_id in torch.unique(ch_ids):
         ch_id = ch_id.item()
-        mask = (ch_ids == ch_id).squeeze() # Create mask for the channel
-        ch_probs = window_probs[mask] # Probability for each window in the channel (sigmoid or softmax)
+        mask = (ch_ids == ch_id).squeeze()  # Create mask for the channel
+        ch_probs_raw = window_probs_raw[
+            mask
+        ]  # Probability for each window in the channel (sigmoid or softmax)
+        ch_probs_calibrated = window_probs_calibrated[mask]
 
         if args.open_neuro.ch_loss_type == "BCE":
-            mean_prob = ch_probs.mean().unsqueeze(-1) # Mean probability for the channel (1,)
-            ch_pred = (mean_prob > args.exp.thresh).float() # Predictions for the channel: 1 if mean probability > thresh, 0 otherwise
+            mean_prob_raw = ch_probs_raw.mean().unsqueeze(
+                -1
+            )  # Mean probability for the channel (1,)
+            mean_prob_calibrated = ch_probs_calibrated.mean().unsqueeze(-1)
+            ch_pred_raw = (
+                mean_prob_raw > args.exp.thresh
+            ).float()  # Predictions for the channel: 1 if mean probability > thresh, 0 otherwise
+            ch_pred_calibrated = (mean_prob_calibrated > args.exp.thresh).float()
         elif args.open_neuro.ch_loss_type == "CE":
-            mean_prob = ch_probs.mean(0) # Mean probabilities over the channel (num_classes,)
-            ch_pred = mean_prob.argmax().unsqueeze(-1)
+            mean_prob_raw = ch_probs_raw.mean(
+                0
+            )  # Mean probabilities over the channel (num_classes,)
+            mean_prob_calibrated = ch_probs_calibrated.mean(0)
+            ch_pred_raw = mean_prob_raw.argmax().unsqueeze(-1)
+            ch_pred_calibrated = mean_prob_calibrated.argmax().unsqueeze(-1)
 
-        ch_target = target[mask][0] # Grab the target for the channel
+        ch_target = target[mask][0]  # Grab the target for the channel
 
-        probs.append(mean_prob)
-        preds.append(ch_pred)
-        targets.append(ch_target)
+        raw_probs.append(mean_prob_raw)
+        raw_preds.append(ch_pred_raw)
+        calibrated_probs_list.append(mean_prob_calibrated)
+        calibrated_preds_list.append(ch_pred_calibrated)
+        raw_targets.append(ch_target)
+        channel_ids.append(ch_id)
+        channel_lengths.append(int(mask.sum().item()))
 
     # Results
-    preds = torch.stack(preds).view(-1) # Shape (num_unique_ch,) if num_classes = 2 and (num_unique_ch, num_classes) if num_classes > 2
-    targets = torch.stack(targets).view(-1)
-    probs = torch.stack(probs)
+    raw_preds = torch.stack(raw_preds).view(-1)
+    raw_targets = torch.stack(raw_targets).view(-1)
+    raw_probs = torch.stack(raw_probs)
+    targets = raw_targets
 
+    calibrated_probs = torch.stack(calibrated_probs_list)
+    calibrated_preds = torch.stack(calibrated_preds_list).view(-1)
 
-    if calibrator and args.exp.calibration_type=="channel":
-        probs = calibrator.calibrate(probs)
+    if calibrator and args.exp.calibration_type == "channel":
+        calibrated_probs = calibrator.calibrate(calibrated_probs)
+        if not torch.is_tensor(calibrated_probs):
+            calibrated_probs = torch.as_tensor(
+                calibrated_probs, device=raw_probs.device
+            )
         if args.open_neuro.ch_loss_type == "BCE":
-            preds = (probs > args.exp.thresh).float()
+            calibrated_preds = (calibrated_probs > args.exp.thresh).float()
         elif args.open_neuro.ch_loss_type == "CE":
-            preds = probs.argmax(dim=-1)
+            calibrated_preds = calibrated_probs.argmax(dim=-1)
+
+    probs = calibrated_probs
+    preds = calibrated_preds
+    raw_probs_cpu = raw_probs.detach().cpu()
+    raw_preds_cpu = raw_preds.detach().cpu()
+    raw_targets_cpu = raw_targets.detach().cpu()
+
+    calibrated_probs_cpu = (
+        calibrated_probs.detach().cpu()
+        if torch.is_tensor(calibrated_probs)
+        else torch.as_tensor(calibrated_probs).detach().cpu()
+    )
+    calibrated_preds_cpu = (
+        calibrated_preds.detach().cpu()
+        if torch.is_tensor(calibrated_preds)
+        else torch.as_tensor(calibrated_preds).detach().cpu()
+    )
+
+    def _to_python(val):
+        if torch.is_tensor(val):
+            if val.numel() == 1:
+                return val.item()
+            return val.tolist()
+        return val
+
+    channel_df = pd.DataFrame(
+        {
+            "ch_id": channel_ids,
+            "length": channel_lengths,
+            "ch_prob": [_to_python(p) for p in raw_probs_cpu],
+            "ch_prob_calibrated": [_to_python(p) for p in calibrated_probs_cpu],
+            "ch_pred": [_to_python(p) for p in raw_preds_cpu],
+            "ch_pred_calibrated": [_to_python(p) for p in calibrated_preds_cpu],
+            "target": [_to_python(t) for t in raw_targets_cpu],
+        }
+    )
+    channel_df["length_in_seconds"] = (channel_df["length"] * 12 + 12) / 1000
 
     if args.exp.other_metrics:
         if args.open_neuro.task == "binary":
-            metrics = binary_classification_metrics(preds, targets, probs, logits.device)
+            metrics = binary_classification_metrics(
+                preds, targets, probs, logits.device
+            )
         elif args.open_neuro.task == "multi":
             metrics = multi_classification_metrics(preds, targets, probs, logits.device)
-        return metrics
+        return metrics, channel_df
     else:
-        return (preds == targets).float().mean()
+        return (preds == targets).float().mean(), channel_df
+
 
 def sync(args):
     """
@@ -267,13 +373,16 @@ def sync(args):
         dist.barrier()
         # print("Synchronizing (classification.py)")
 
+
 def gather_tensor(tensor):
     gathered = [torch.zeros_like(tensor) for _ in range(dist.get_world_size())]
     dist.all_gather(gathered, tensor)
     return torch.cat(gathered)
 
+
 def reduce_tensor(tensor):
     return dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
+
 
 def get_metrics(
     args: BaseModel,
@@ -283,13 +392,14 @@ def get_metrics(
     u: Union[torch.Tensor, List[torch.Tensor]] = None,
     mode: str = "channel",
     rank: int = 0,
-    calibrator = None,
+    calibrator=None,
 ) -> torch.Tensor:
-
     # Window metrics
     if mode == "window":
         if args.exp.batchwise_metrics:
-            assert all(isinstance(x, list) for x in [logits, target]), "Logits and targets must be lists."
+            assert all(isinstance(x, list) for x in [logits, target]), (
+                "Logits and targets must be lists."
+            )
             num_batches = len(logits)
             num_examples = torch.tensor(0.0, device=logits[0].device)
             total_metrics = None
@@ -297,7 +407,11 @@ def get_metrics(
             for i in range(num_batches):
                 metrics = compute_accuracy(logits[i], target[i], args, calibrator)
                 batch_size = logits[i].size(0)
-                total_metrics = (total_metrics + metrics * batch_size) if total_metrics is not None else metrics * batch_size
+                total_metrics = (
+                    (total_metrics + metrics * batch_size)
+                    if total_metrics is not None
+                    else metrics * batch_size
+                )
                 num_examples += batch_size
 
             if args.ddp.ddp:
@@ -308,24 +422,40 @@ def get_metrics(
             sync(args)
             return total_metrics / num_examples.item()
         else:
-            logits = torch.cat(logits); target = torch.cat(target)
+            logits = torch.cat(logits)
+            target = torch.cat(target)
             if args.ddp.ddp:
                 sync(args)
-                logits = gather_tensor(logits); target = gather_tensor(target)
-            return compute_accuracy(logits, target, args, calibrator) if rank == 0 else None
+                logits = gather_tensor(logits)
+                target = gather_tensor(target)
+            return (
+                compute_accuracy(logits, target, args, calibrator)
+                if rank == 0
+                else None
+            )
 
     # Channel metrics
     elif mode == "channel":
         if args.exp.batchwise_metrics:
-            assert all(isinstance(x, list) for x in [logits, target, ch_ids, u]), "Logits, target, ch_ids, and u must be lists."
+            assert all(isinstance(x, list) for x in [logits, target, ch_ids, u]), (
+                "Logits, target, ch_ids, and u must be lists."
+            )
             num_batches = len(logits)
             total_metrics = None
             num_examples = torch.tensor(0.0, device=logits[0].device)
+            channel_dfs = []
 
             for i in range(num_batches):
-                metrics = compute_channel_accuracy(logits[i], target[i], ch_ids[i], u[i], args, calibrator)
+                metrics, channel_df = compute_channel_accuracy(
+                    logits[i], target[i], ch_ids[i], u[i], args, calibrator
+                )
+                channel_dfs.append(channel_df)
                 batch_size = logits[i].size(0)
-                total_metrics = (total_metrics + metrics * batch_size) if total_metrics is not None else metrics * batch_size
+                total_metrics = (
+                    (total_metrics + metrics * batch_size)
+                    if total_metrics is not None
+                    else metrics * batch_size
+                )
                 num_examples += batch_size
 
             if args.ddp.ddp:
@@ -334,25 +464,62 @@ def get_metrics(
                 sync(args)
                 reduce_tensor(num_examples)
             sync(args)
-            return total_metrics / num_examples.item()
+            final_metrics = total_metrics / num_examples.item()
+            final_channel_df = (
+                pd.concat(channel_dfs, ignore_index=True)
+                if len(channel_dfs) > 0
+                else pd.DataFrame()
+            )
+            return final_metrics, final_channel_df
         else:
             # Get all outputs/targets/ch_ids/etc from all batches
-            logits = torch.cat(logits); target = torch.cat(target); ch_ids = torch.cat(ch_ids); u = torch.cat(u)
+            logits = torch.cat(logits)
+            target = torch.cat(target)
+            ch_ids = torch.cat(ch_ids)
+            u = torch.cat(u)
             if args.ddp.ddp:
                 sync(args)
-                logits = gather_tensor(logits); target = gather_tensor(target); ch_ids = gather_tensor(ch_ids); u = gather_tensor(u)
-            return compute_channel_accuracy(logits, target, ch_ids, u, args, calibrator) if rank == 0 else None
+                logits = gather_tensor(logits)
+                target = gather_tensor(target)
+                ch_ids = gather_tensor(ch_ids)
+                u = gather_tensor(u)
+            return (
+                compute_channel_accuracy(logits, target, ch_ids, u, args, calibrator)
+                if rank == 0
+                else None
+            )
     else:
         raise ValueError(f"Invalid mode: {mode}. Use 'window' or 'channel'.")
 
-def update_stats(stats, metrics, task="binary", other_metrics=False, channel=False, rank=0):
+
+def update_stats(
+    stats, metrics, task="binary", other_metrics=False, channel=False, rank=0
+):
     if rank != 0:
         return
+    if isinstance(metrics, tuple):
+        metrics, _ = metrics
     binary = ["tpr", "tnr", "fpr", "fnr", "f1", "auroc"]
-    multi = ["acc_soz", "tpr_soz", "tnr_soz", "fpr_soz", "fnr_soz", "f1_soz", "auroc_soz", "acc_outcome", "tpr_outcome", "tnr_outcome", \
-             "fpr_outcome", "fnr_outcome", "f1_outcome", "auroc_outcome", "f1_multi", "auroc_multi"]
+    multi = [
+        "acc_soz",
+        "tpr_soz",
+        "tnr_soz",
+        "fpr_soz",
+        "fnr_soz",
+        "f1_soz",
+        "auroc_soz",
+        "acc_outcome",
+        "tpr_outcome",
+        "tnr_outcome",
+        "fpr_outcome",
+        "fnr_outcome",
+        "f1_outcome",
+        "auroc_outcome",
+        "f1_multi",
+        "auroc_multi",
+    ]
 
-    keys = binary if task=="binary" else multi
+    keys = binary if task == "binary" else multi
 
     if channel:
         keys = ["ch_" + s for s in keys]
@@ -364,31 +531,36 @@ def update_stats(stats, metrics, task="binary", other_metrics=False, channel=Fal
         for i, key in enumerate(keys):
             stats[key] = metrics[i + 1].item()
 
+
 def get_logger_mapping(task="binary"):
-    if task=="binary":
-        mapping = {"tpr": "true_positive_rate",
-                   "tnr": "true_negative_rate",
-                   "fpr": "false_positive_rate",
-                   "fnr": "false_negative_rate",
-                   "f1": "f1_score",
-                   "auroc": "auroc",}
-    elif task=="multi":
-        mapping = {"acc_soz": "accuracy_soz",
-                   "tpr_soz": "true_positive_rate_soz",
-                   "tnr_soz": "true_negative_rate_soz",
-                   "fpr_soz": "false_positive_rate_soz",
-                   "fnr_soz": "false_negative_rate_soz",
-                   "f1_soz": "f1_score_soz",
-                   "auroc_soz": "auroc_soz",
-                   "acc_outcome": "accuracy_outcome",
-                   "tpr_outcome": "true_positive_rate_outcome",
-                   "tnr_outcome": "true_negative_rate_outcome",
-                   "fpr_outcome": "false_positive_rate_outcome",
-                   "fnr_outcome": "false_negative_rate_outcome",
-                   "f1_outcome": "f1_score_outcome",
-                   "auroc_outcome": "auroc_outcome",
-                   "f1_multi": "f1_score_multi",
-                   "auroc_multi": "auroc_multi"}
+    if task == "binary":
+        mapping = {
+            "tpr": "true_positive_rate",
+            "tnr": "true_negative_rate",
+            "fpr": "false_positive_rate",
+            "fnr": "false_negative_rate",
+            "f1": "f1_score",
+            "auroc": "auroc",
+        }
+    elif task == "multi":
+        mapping = {
+            "acc_soz": "accuracy_soz",
+            "tpr_soz": "true_positive_rate_soz",
+            "tnr_soz": "true_negative_rate_soz",
+            "fpr_soz": "false_positive_rate_soz",
+            "fnr_soz": "false_negative_rate_soz",
+            "f1_soz": "f1_score_soz",
+            "auroc_soz": "auroc_soz",
+            "acc_outcome": "accuracy_outcome",
+            "tpr_outcome": "true_positive_rate_outcome",
+            "tnr_outcome": "true_negative_rate_outcome",
+            "fpr_outcome": "false_positive_rate_outcome",
+            "fnr_outcome": "false_negative_rate_outcome",
+            "f1_outcome": "f1_score_outcome",
+            "auroc_outcome": "auroc_outcome",
+            "f1_multi": "f1_score_multi",
+            "auroc_multi": "auroc_multi",
+        }
     else:
         raise ValueError("Invalid task. Please select 'binary' or 'multi'")
 
@@ -396,7 +568,6 @@ def get_logger_mapping(task="binary"):
 
 
 if __name__ == "__main__":
-
     # Inputs
     n = 10
 
@@ -417,8 +588,8 @@ if __name__ == "__main__":
     # for name, value in zip(metric_names, metrics):
     #     print(f"{name}: {value.item():.4f}")
 
-
     from sss.config.config import Global
+
     args = Global()
     args.exp.batchwise_metrics = True
     args.exp.u_weight = False
@@ -428,7 +599,11 @@ if __name__ == "__main__":
 
     # Function to create a test case
     num_batches = 10
-    good_logits = [torch.tensor([-20, 300, -50]), torch.tensor([-500, -500]), torch.tensor([1000, -300])]
+    good_logits = [
+        torch.tensor([-20, 300, -50]),
+        torch.tensor([-500, -500]),
+        torch.tensor([1000, -300]),
+    ]
     bad_logits = [-x for x in good_logits]
     target = [torch.tensor([0, 1, 0]), torch.tensor([0, 0]), torch.tensor([1, 0])]
     ch_ids = [torch.tensor([0, 1, 0]), torch.tensor([0, 0]), torch.tensor([1, 0])]

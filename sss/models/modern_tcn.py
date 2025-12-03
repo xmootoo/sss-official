@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from time_series_jepa.layers.modern_tcn.backbone import ModernTCNBackbone
+from sss.layers.modern_tcn.backbone import ModernTCNBackbone
 
 class ModernTCN(nn.Module):
     def __init__(self,

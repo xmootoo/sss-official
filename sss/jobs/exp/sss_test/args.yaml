@@ -1,9 +1,7 @@
 exp:
   model_id: "PatchTSTBlind"
-  seed_list: [69421, 69422, 69423, 69424, 69425]
+  seed_list: [69421]
   learning_type: "sl"
-  scale: True
-  balance: True
   acc: True
   ch_acc: True
   other_metrics: True
@@ -13,7 +11,11 @@ exp:
   tuning_metric: "ch_f1"
   gpu_id: 0
   task: "classification"
-  neptune: False
+  neptune: True
+  project_name: "sss-revision/version1"
+  calibrate: True
+  calibration_model: "isotonic_regression"
+  calibration_type: "window"
 
 data:
   resizing_mode: "pad_trunc"
@@ -27,6 +29,7 @@ data:
   train_split: 0.7
   val_split: 0.1
   scale: True
+  balance: True
   shuffle_test: True
 
 ddp:
@@ -38,8 +41,7 @@ sl:
   criterion: "ChannelLossBCE"
   scheduler: "cosine"
   epochs: 50
-  # batch_size: 8192
-  batch_size: 1024
+  batch_size: 8192
   lr: 1e-4
   num_enc_layers: 2
   d_model: 32
@@ -57,6 +59,8 @@ sl:
   head_type: "linear"
 
 open_neuro:
+  noise: False
+  patient_cluster: "ummc"
   kernel_size: 24
   kernel_stride: -1
   pool_type: "avg"
@@ -65,8 +69,7 @@ open_neuro:
   alpha: 0.0
   beta: 1.0
   task: "binary"
-  patient_cluster: "all"
-  all_clusters: True
+  all_clusters: False
   loocv: False
   train_clusters: ["pt", "umf", "ummc"]
   test_clusters: ["jh"]
@@ -74,4 +77,4 @@ open_neuro:
   ch_reduction: "mean"
 
 early_stopping:
-  patience: 15
+  patience: 5

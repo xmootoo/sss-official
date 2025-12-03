@@ -1,14 +1,17 @@
+import gc
 import os
+import random
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
-from sss.utils.dataloading import load_open_neuro_interchannel, create_windows
-import random
-from torch.utils.data import TensorDataset, DataLoader
-from sss.utils.recalibrate import train_calibrator, load
-from rich.console import Console
-import gc
 import torch.nn.functional as F
+from rich.console import Console
+from torch.utils.data import DataLoader, TensorDataset
+
+from sss.utils.dataloading import create_windows, load_open_neuro_interchannel
+from sss.utils.recalibrate import load, train_calibrator
+
 
 def heatmap_analysis(
     run,
@@ -24,7 +27,7 @@ def heatmap_analysis(
     avg_mode="none",
     save=True,
     method_name="SSS",
-    cmap='viridis',
+    cmap="viridis",
     dpi=300,
     calibrate=False,
     calibration_model="isotonic_regression",
@@ -47,6 +50,9 @@ def heatmap_analysis(
     # Load the data
     full_channels = load_open_neuro_interchannel(
         patient_cluster=patient_cluster,
+        noise=run["parameters/open_neuro/noise"].fetch(),
+        noise_fs=run["parameters/open_neuro/noise_fs"].fetch(),
+        noise_line_freq=run["parameters/open_neuro/noise_line_freq"].fetch(),
         kernel_size=run["parameters/open_neuro/kernel_size"].fetch(),
         kernel_stride=run["parameters/open_neuro/kernel_stride"].fetch(),
         window_size=window_size,
@@ -62,15 +68,26 @@ def heatmap_analysis(
         full_channels=True,
         multicluster=False,
         resizing_mode="None",
-        median_seq_len=False
+        median_seq_len=False,
     )
-    train_data, train_labels, train_ch_ids, val_data, val_labels, val_ch_ids, test_data, test_labels, test_ch_ids, _ = full_channels
+    (
+        train_data,
+        train_labels,
+        train_ch_ids,
+        val_data,
+        val_labels,
+        val_ch_ids,
+        test_data,
+        test_labels,
+        test_ch_ids,
+        _,
+    ) = full_channels
 
     # Select the appropriate dataset based on the mode
     mode_mapping = {
         "train": (train_data, train_labels, train_ch_ids),
         "val": (val_data, val_labels, val_ch_ids),
-        "test": (test_data, test_labels, test_ch_ids)
+        "test": (test_data, test_labels, test_ch_ids),
     }
     data, labels, ch_ids = mode_mapping[mode]
 
@@ -79,12 +96,21 @@ def heatmap_analysis(
         # Get channel data
         channel = data[i].squeeze()
         channel_length = len(channel)
+        label = labels[i].squeeze()
+        print(f"Label: {label} {type(label)}")
+        
+        if label != 1:
+        	continue
 
         if window_size > channel_length:
-            console.log(f"Skipping channel {i}: window size ({window_size}) > channel length ({channel_length})")
+            console.log(
+                f"Skipping channel {i}: window size ({window_size}) > channel length ({channel_length})"
+            )
             continue
 
-        console.log(f"Processing channel {i}: Window size: {window_size}, Channel length: {channel_length}")
+        console.log(
+            f"Processing channel {i}: Window size: {window_size}, Channel length: {channel_length}"
+        )
 
         # Create windows
         windows = create_windows(channel, window_size, window_stride=1)
@@ -104,13 +130,17 @@ def heatmap_analysis(
         # Apply sigmoid function
         if probability:
             window_probs_arr = F.sigmoid(torch.tensor(window_probs_arr)).numpy()
-            console.log(f"Applied sigmoid function to window probabilities for channel {i}")
+            console.log(
+                f"Applied sigmoid function to window probabilities for channel {i}"
+            )
             console.log(f"Max probability: {np.max(window_probs_arr)}")
             console.log(f"Min probability: {np.min(window_probs_arr)}")
 
         if calibrate:
             window_probs_arr = calibrator.calibrate(window_probs_arr).cpu().numpy()
-            console.log(f"Calibrated window probabilities for channel {i} with {calibration_model}")
+            console.log(
+                f"Calibrated window probabilities for channel {i} with {calibration_model}"
+            )
 
         # Distribute and average probabilities
         avg_probs = np.zeros(channel_length)
@@ -120,7 +150,7 @@ def heatmap_analysis(
             end_idx = start_idx + window_size
             avg_probs[start_idx:end_idx] += prob
             counts[start_idx:end_idx] += 1
-        avg_probs = np.divide(avg_probs, counts, where=counts!=0)
+        avg_probs = np.divide(avg_probs, counts, where=counts != 0)
 
         # Apply moving average if specified
         if avg_mode == "sma":
@@ -132,7 +162,9 @@ def heatmap_analysis(
         elif avg_mode == "none":
             pass
         else:
-            raise ValueError(f"Invalid avg_mode: {avg_mode}. Options: 'sma', 'ema', 'local_var', 'none'")
+            raise ValueError(
+                f"Invalid avg_mode: {avg_mode}. Options: 'sma', 'ema', 'local_var', 'none'"
+            )
 
         # Plot the heatmap
         label = labels[i].item()
@@ -150,29 +182,34 @@ def heatmap_analysis(
             dpi,
             avg_mode,
             console,
-            relative
+            relative,
         )
 
-    console.log(f"Finished processing {min(num_sampled_channels, num_channels)} channels.")
+    console.log(
+        f"Finished processing {min(num_sampled_channels, num_channels)} channels."
+    )
+
 
 def simple_moving_average(x, w):
-    return np.convolve(x, np.ones(w), 'valid') / w
+    return np.convolve(x, np.ones(w), "valid") / w
+
 
 def exp_moving_average(x, w):
-    alpha = 2 /(w + 1.0)
-    alpha_rev = 1-alpha
+    alpha = 2 / (w + 1.0)
+    alpha_rev = 1 - alpha
     n = x.shape[0]
 
-    pows = alpha_rev**(np.arange(n+1))
+    pows = alpha_rev ** (np.arange(n + 1))
 
-    scale_arr = 1/pows[:-1]
-    offset = x[0]*pows[1:]
-    pw0 = alpha*alpha_rev**(n-1)
+    scale_arr = 1 / pows[:-1]
+    offset = x[0] * pows[1:]
+    pw0 = alpha * alpha_rev ** (n - 1)
 
-    mult = x*pw0*scale_arr
+    mult = x * pw0 * scale_arr
     cumsums = mult.cumsum()
-    out = offset + cumsums*scale_arr[::-1]
+    out = offset + cumsums * scale_arr[::-1]
     return out
+
 
 def local_variance(x, w):
     """
@@ -180,37 +217,57 @@ def local_variance(x, w):
     High variance regions might indicate areas of uncertainty or transition.
     """
     variance = np.zeros(len(x))
-    padded_probs = np.pad(x, (w//2, w//2), mode='edge')
+    padded_probs = np.pad(x, (w // 2, w // 2), mode="edge")
 
     for i in range(len(x)):
-        window = padded_probs[i:i+w]
+        window = padded_probs[i : i + w]
         variance[i] = np.var(window)
 
     return variance
 
 
 def get_calibrator(device, run_id, calibration_model, console):
-    model, loaders, calibrator, exp_args = load(device, run_id, calibration_model, console)
+    model, loaders, calibrator, exp_args = load(
+        device, run_id, calibration_model, console
+    )
     train_calibrator(exp_args, loaders, calibrator, model, device)
     return calibrator
 
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Set up the font to mimic LaTeX/Computer Modern
-plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.serif'] = ['Computer Modern Roman'] + plt.rcParams['font.serif']
-plt.rcParams['mathtext.fontset'] = 'cm'
-plt.rcParams['axes.unicode_minus'] = False  # Ensures proper minus sign
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["font.serif"] = ["Computer Modern Roman"] + plt.rcParams["font.serif"]
+plt.rcParams["mathtext.fontset"] = "cm"
+plt.rcParams["axes.unicode_minus"] = False  # Ensures proper minus sign
 
 
-def plot_heatmap(avg_probs, channel, label, ch_id=14, run_id="SOZ-33", patient_cluster="jh", method_name="SSS", cmap='viridis', save=False, dpi=300, avg_mode="sma", console=None, relative=False):
-    assert cmap in ['viridis', 'plasma', "inferno", "coolwarm"], "Invalid color map. Options: 'viridis', 'plasma', 'inferno', 'coolwarm'."
+def plot_heatmap(
+    avg_probs,
+    channel,
+    label,
+    ch_id=14,
+    run_id="SOZ-33",
+    patient_cluster="jh",
+    method_name="SSS",
+    cmap="viridis",
+    save=False,
+    dpi=300,
+    avg_mode="sma",
+    console=None,
+    relative=False,
+):
+    assert cmap in ["viridis", "plasma", "inferno", "coolwarm"], (
+        "Invalid color map. Options: 'viridis', 'plasma', 'inferno', 'coolwarm'."
+    )
 
-    label_name = "SOZ" if label==1 else "Non-SOZ"
-    cluster_name = "All Clusters" if patient_cluster == "all" else f"Cluster {patient_cluster}"
+    label_name = "SOZ" if label == 1 else "Non-SOZ"
+    cluster_name = (
+        "All Clusters" if patient_cluster == "all" else f"Cluster {patient_cluster}"
+    )
     num_time_steps = len(channel)
 
     heatmap_height = 200
@@ -219,7 +276,10 @@ def plot_heatmap(avg_probs, channel, label, ch_id=14, run_id="SOZ-33", patient_c
     fig, ax = plt.subplots(figsize=(16, 8), dpi=600)
     plt.subplots_adjust(left=0.12, right=0.9, top=0.9, bottom=0.1)
 
-    X, Y = np.meshgrid(np.arange(num_time_steps), np.linspace(np.min(channel), np.max(channel), heatmap_height))
+    X, Y = np.meshgrid(
+        np.arange(num_time_steps),
+        np.linspace(np.min(channel), np.max(channel), heatmap_height),
+    )
 
     console.log(f"Max probability: {np.max(avg_probs)}")
     console.log(f"Min probability: {np.min(avg_probs)}")
@@ -233,8 +293,10 @@ def plot_heatmap(avg_probs, channel, label, ch_id=14, run_id="SOZ-33", patient_c
         vmax = 1
         cbar_label = "Probability of SOZ"
 
-    pcm = ax.pcolormesh(X, Y, heatmap_data, shading='auto', cmap=cmap, alpha=0.7, vmin=vmin, vmax=vmax)
-    ax.plot(channel, color='black', linewidth=1.5, alpha=0.85)
+    pcm = ax.pcolormesh(
+        X, Y, heatmap_data, shading="auto", cmap=cmap, alpha=0.7, vmin=vmin, vmax=vmax
+    )
+    ax.plot(channel, color="black", linewidth=1.5, alpha=0.85)
 
     cluster_mapping = {
         "jh": "JHH",
@@ -246,11 +308,15 @@ def plot_heatmap(avg_probs, channel, label, ch_id=14, run_id="SOZ-33", patient_c
     # Reduced title font size by ~25%
     # ax.set_title(f'{label_name} iEEG Signal ({cluster_mapping[patient_cluster]})', fontsize=28, pad=10)
     # Updated title with full LaTeX rendering and inline math for B=128
-    ax.set_title(f'{label_name} iEEG Signal ({cluster_mapping[patient_cluster]}) $L=1024$', fontsize=28, pad=10)
+    ax.set_title(
+        f"{label_name} iEEG Signal ({cluster_mapping[patient_cluster]}) $L=1024$",
+        fontsize=28,
+        pad=10,
+    )
 
     # Adjusted x-axis and y-axis label font sizes
-    ax.set_xlabel('Time', fontsize=24)
-    ax.set_ylabel('Normalized Amplitude', fontsize=24)
+    ax.set_xlabel("Time", fontsize=24)
+    ax.set_ylabel("Normalized Amplitude", fontsize=24)
 
     divider = make_axes_locatable(ax)
 
@@ -261,13 +327,24 @@ def plot_heatmap(avg_probs, channel, label, ch_id=14, run_id="SOZ-33", patient_c
     cbar.ax.tick_params(labelsize=14)
 
     ax.legend()
-    ax.tick_params(axis='both', which='major', labelsize=18)
+    ax.tick_params(axis="both", which="major", labelsize=18)
+
+    from pathlib import Path
+
+    SCRIPT_DIR = Path(__file__).resolve().parent
 
     if save:
-        save_dir = f"../../../figures/{run_id}_{patient_cluster}_{avg_mode}"
-        os.makedirs(save_dir, exist_ok=True)
-        file_path = os.path.join(save_dir, f"{run_id}_channel_{ch_id}_{label_name}_{patient_cluster}.png")
+        # save_dir = f"../../../figures/{run_id}_{patient_cluster}_{avg_mode}"
+        save_dir = (
+            SCRIPT_DIR.parents[2] / "figures" / f"{run_id}_{patient_cluster}_{avg_mode}"
+        )
+        save_dir.mkdir(parents=True, exist_ok=True)
+        # os.makedirs(save_dir, exist_ok=True)
+        # file_path = os.path.join(save_dir, f"{run_id}_channel_{ch_id}_{label_name}_{patient_cluster}.png")
+        file_path = (
+            save_dir / f"{run_id}_channel_{ch_id}_{label_name}_{patient_cluster}.png"
+        )
         console.log(f"Saving figure with DPI {dpi}...")
-        plt.savefig(file_path, dpi=dpi, bbox_inches='tight')
+        plt.savefig(file_path, dpi=dpi, bbox_inches="tight")
     else:
         plt.show()

@@ -13,3 +13,4 @@ ecosystem.config.js
 logs/
 old_logs/
 figures/
+venv/
