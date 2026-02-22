@@ -2,15 +2,13 @@
 ## Overview
 This is the official repository for the paper:
 
->[Xavier Mootoo, Alan A. Díaz-Montiel, Milad Lankarany, Hina Tabassum. *Stochastic Sparse Sampling: A Framework for Variable-Length Medical Time Series Classification*.](https://arxiv.org/abs/2410.06412)
+>[Mootoo, Xavier, et al. *Stochastic Sparse Sampling: A Variable-Length Time Series Classification Framework for Seizure Onset Zone Localization.* IEEE Transactions on Biomedical Engineering (2025).](https://ieeexplore.ieee.org/abstract/document/11316245)
 
-An preliminary version has been accepted to the **NeurIPS 2024 Workshop on Time Series in the Age of Large Models**, with the full version under review.
-- [📄 Full Paper (arXiv)](https://arxiv.org/abs/2410.06412)
+Which is the extension of our workshop paper, accepted to **NeurIPS 2024 Workshop on Time Series in the Age of Large Models**, found below:
 - [🔍 Workshop Paper (OpenReview)](https://openreview.net/forum?id=4dpbdz280d)
+
 ## Description
 **S**tochastic **S**parse **S**ampling (SSS) is a novel time series classification method for processing variable-length sequences. SSS outperforms many state-of-the-art machine learning and deep learning methods, benchmarked on the [Epilepsy iEEG Multicenter Dataset](#data) for seizure onset zone (SOZ) localization. 
-
-
 
 <p align="center">
   <picture>
